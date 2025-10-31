@@ -1,0 +1,119 @@
+# Traffic Accident Risk Prediction using Bayesian Network
+# --------------------------------------------------------
+# Author: Your Name
+# Project: AI Mini Project (Probabilistic Reasoning)
+# Concept: Bayesian Network, Bayesian Inference, Probabilistic Reasoning
+
+# Importing required libraries
+from pgmpy.models import BayesianNetwork
+from pgmpy.factors.discrete import TabularCPD
+from pgmpy.inference import VariableElimination
+
+# Step 1: Define the structure of the Bayesian Network
+# -----------------------------------------------------
+# The network structure defines causal relationships between variables
+# Weather → RoadCondition → Accident
+# Traffic → Accident
+# DriverCondition → Accident
+
+model = BayesianNetwork([
+    ('Weather', 'RoadCondition'),
+    ('RoadCondition', 'Accident'),
+    ('Traffic', 'Accident'),
+    ('DriverCondition', 'Accident')
+])
+
+# Step 2: Define Conditional Probability Distributions (CPDs)
+# ------------------------------------------------------------
+
+# Weather: Sunny, Rainy
+cpd_weather = TabularCPD(
+    variable='Weather',
+    variable_card=2,
+    values=[[0.7], [0.3]],  # 70% Sunny, 30% Rainy
+    state_names={'Weather': ['Sunny', 'Rainy']}
+)
+
+# RoadCondition depends on Weather
+cpd_road = TabularCPD(
+    variable='RoadCondition',
+    variable_card=2,
+    values=[[0.9, 0.4],  # Good
+            [0.1, 0.6]],  # Bad
+    evidence=['Weather'],
+    evidence_card=[2],
+    state_names={'RoadCondition': ['Good', 'Bad'], 'Weather': ['Sunny', 'Rainy']}
+)
+
+# Traffic: Low, High
+cpd_traffic = TabularCPD(
+    variable='Traffic',
+    variable_card=2,
+    values=[[0.6], [0.4]],  # 60% Low, 40% High
+    state_names={'Traffic': ['Low', 'High']}
+)
+
+# DriverCondition: Sober, Drunk
+cpd_driver = TabularCPD(
+    variable='DriverCondition',
+    variable_card=2,
+    values=[[0.85], [0.15]],  # 85% Sober, 15% Drunk
+    state_names={'DriverCondition': ['Sober', 'Drunk']}
+)
+
+# Accident depends on RoadCondition, Traffic, DriverCondition
+cpd_accident = TabularCPD(
+    variable='Accident',
+    variable_card=2,
+    values=[
+        # No Accident probabilities
+        [0.99, 0.95, 0.90, 0.85, 0.92, 0.80, 0.75, 0.60],
+        # Accident probabilities
+        [0.01, 0.05, 0.10, 0.15, 0.08, 0.20, 0.25, 0.40]
+    ],
+    evidence=['RoadCondition', 'Traffic', 'DriverCondition'],
+    evidence_card=[2, 2, 2],
+    state_names={
+        'Accident': ['No', 'Yes'],
+        'RoadCondition': ['Good', 'Bad'],
+        'Traffic': ['Low', 'High'],
+        'DriverCondition': ['Sober', 'Drunk']
+    }
+)
+
+# Step 3: Add all CPDs to the model
+# ----------------------------------
+model.add_cpds(cpd_weather, cpd_road, cpd_traffic, cpd_driver, cpd_accident)
+
+# Check model correctness
+assert model.check_model()
+
+# Step 4: Perform inference
+# -------------------------
+inference = VariableElimination(model)
+
+# Example 1: Probability of an accident on a rainy day
+query1 = inference.query(variables=['Accident'], evidence={'Weather': 'Rainy'})
+print("\n[1] Probability of Accident on a Rainy Day:")
+print(query1)
+
+# Example 2: Probability of accident when driver is drunk and traffic is high
+query2 = inference.query(variables=['Accident'], evidence={'DriverCondition': 'Drunk', 'Traffic': 'High'})
+print("\n[2] Probability of Accident when Driver is Drunk and Traffic is High:")
+print(query2)
+
+# Example 3: Probability of accident on a sunny day with good road condition and sober driver
+query3 = inference.query(variables=['Accident'], evidence={
+    'Weather': 'Sunny', 'RoadCondition': 'Good', 'DriverCondition': 'Sober'
+})
+print("\n[3] Probability of Accident on Sunny Day, Good Road, and Sober Driver:")
+print(query3)
+
+# Example 4: Probability of accident when all conditions are bad
+query4 = inference.query(variables=['Accident'], evidence={
+    'Weather': 'Rainy', 'Traffic': 'High', 'DriverCondition': 'Drunk'
+})
+print("\n[4] Probability of Accident under Worst Conditions:")
+print(query4)
+
+print("\n✅ Bayesian Network successfully predicted accident risks under different scenarios.")
